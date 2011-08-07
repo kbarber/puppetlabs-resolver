@@ -28,6 +28,8 @@
 # [attempts]
 #   *Optional* Sets the number of times the resolver will query its name 
 #   servers.
+# [debug]
+#   *Optional* Turn on debugging.
 # [rotate]
 #   *Optional* If true causes round robin selection of nameservers from those
 #   listed.
@@ -94,6 +96,7 @@ class resolver (
   $ndots = undef,
   $timeout = undef,
   $attempts = undef,
+  $debug = false,
   $rotate = false,
   $no_check_names = false,
   $inet6 = false,
@@ -108,7 +111,7 @@ class resolver (
 
   # - nameserver
   define validate_nameserver {
-    if($name != undef and !is_valid_ip_address($name)) {
+    if($name != undef and !is_ip_address($name)) {
       fail("nameserver [${name}] is not a valid IP address")
     }
   }
@@ -120,7 +123,7 @@ class resolver (
 
   # - search
   define validate_search {
-    if($name != undef and !is_valid_domain_name($name)) {
+    if($name != undef and !is_domain_name($name)) {
       fail("search [${name}] is not a valid domain name")
     }
   }
@@ -134,7 +137,7 @@ class resolver (
   define validate_sortlist {
     $sl_arr = split($name, "/")
     
-    if(!is_valid_ip_address($sl_arr[0])) {
+    if(!is_ip_address($sl_arr[0])) {
       fail("sortlist entry [${name}] is not a valid IP/netmask combination")
     }
   }
@@ -147,7 +150,7 @@ class resolver (
   }
 
   # - domain
-  if($domain != undef and !is_valid_domain_name($domain)) {
+  if($domain != undef and !is_domain_name($domain)) {
     fail("domain [${domain}] is not a valid domain name")
   }
 
@@ -179,15 +182,26 @@ class resolver (
     fail("attempts [${attempts}] is not in range. Must be a number between 1 and 5.")
   }
 
+  # - resolvconf_path
+  if(!is_string($resolvconf_path)) {
+    fail("resolvconf_path must be a string")
+  }
+
+  # - resolvconf_content
+  if(!is_string($resolvconf_contents)) {
+    fail("resolvconf_content must be a string")
+  }
+
   # Domain and search are mutually exclusive, so return an error to avoid 
   # ambiguity.
   if $search and $domain {
     fail("The options 'search' and 'domain' are mutually exclusive, and if both are combined the behaviour is ambigious. 'search' is the recommended parameter to use. Consult the man page for resolv.conf for more details.")
   }
 
-  # Because timeout overlaps with a ruby function, we prefix it to avoid 
-  # namespace clash when we try to use it in the template.
+  # Because timeout and debug overlap with ruby functions, we prefix it to 
+  # avoid namespace clash when we try to use it in the template.
   $_timeout = $timeout
+  $_debug = $debug
 
   # Install resolv.conf in the specified path. If the user supplied their own
   # content just use that, otherwise use the template we have supplied.
